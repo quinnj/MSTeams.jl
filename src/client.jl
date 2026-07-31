@@ -41,7 +41,7 @@ function get_access_token(client::BotClient)
     response = HTTP.post(client.token_url; headers=headers, body=body)
     status = Int(response.status)
     status >= 300 && throw(MSTeamsAuthError("Failed to obtain access token"))
-    payload = JSON.parse(HTTP.payload(response), JSON.Object)
+    payload = JSON.parse(String(response.body), JSON.Object)
     access_token = get(() -> nothing, payload, "access_token")
     expires_in = get(() -> nothing, payload, "expires_in")
     access_token === nothing && throw(MSTeamsAuthError("Token response missing access_token"))
@@ -80,6 +80,9 @@ function parse_response_body(headers::Dict{String, String}, body::AbstractVector
     return JSON.parse(body, JSON.Object)
 end
 
+response_body_bytes(body::AbstractVector{UInt8}) = Vector{UInt8}(body)
+response_body_bytes(body) = Vector{UInt8}(codeunits(String(body)))
+
 function send_activity(client::BotClient, service_url::AbstractString, conversation_id::AbstractString, activity::AbstractDict; reply_to_id=nothing)
     url = activity_url(service_url, conversation_id; reply_to_id=reply_to_id)
     token = get_access_token(client)
@@ -87,7 +90,7 @@ function send_activity(client::BotClient, service_url::AbstractString, conversat
     response = HTTP.post(url; headers=headers, body=JSON.json(activity))
     status = Int(response.status)
     status >= 300 && throw(MSTeamsResponseError("Connector API returned error", status))
-    return parse_response_body(Dict(response.headers), HTTP.payload(response))
+    return parse_response_body(Dict(response.headers), response_body_bytes(response.body))
 end
 
 function build_message_activity(; text::AbstractString, from=nothing, recipient=nothing, conversation=nothing, channel_id=nothing, reply_to_id=nothing, entities=nothing, attachments=nothing, channel_data=nothing)

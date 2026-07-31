@@ -1,5 +1,5 @@
 function parse_activity(req::HTTP.Request)
-    body = HTTP.payload(req)
+    body = String(req.body)
     isempty(body) && throw(MSTeamsRequestError("Request body is empty"))
     try
         return JSON.parse(body, JSON.Object)
